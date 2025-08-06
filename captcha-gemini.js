@@ -481,7 +481,7 @@ URL: /submit
 请求体:
 {
   "image": "&lt;Base64编码后的图片数据&gt;",
-  "mimeType": "&lt;图片的MIME类型, e.g., image/jpeg&gt;"
+  "mimeType": "&lt;图片的MIME类型, e.g., image/png&gt;"
 }
 </pre>
       </div>
