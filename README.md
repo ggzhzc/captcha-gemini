@@ -94,7 +94,7 @@
     ```json
     {
       "image": "<Base64编码后的图片数据>",
-      "mimeType": "<图片的MIME类型, e.g., 'image/png' or 'image/jpeg'>"
+      "mimeType": "<图片的MIME类型, e.g., 'image/png' or 'image/jpg' or 'image/jpeg' or 'image/webp'>"
     }
     ```
   * **成功响应** (HTTP 200):
