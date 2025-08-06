@@ -72,11 +72,15 @@
 
 -----
 
+
 ### **API 使用与集成教程**
 
-你可以通过 HTTP 请求将此服务集成到任何应用程序中。API 调用分为两步：提交任务和查询结果。
+此 API 服务采用异步处理模式，调用过程分为两步，以确保客户端无需长时间等待 AI 处理结果：
 
-#### **1. 提交识别任务**
+1.  **提交任务**：你首先需要向 `/submit` 端点发送一个包含图片数据的 `POST` 请求。服务会立即验证你的请求并返回一个唯一的任务ID (`taskId`)。
+2.  **查询结果**：然后，你需要使用这个 `taskId`，通过轮询（即，每隔几秒钟查询一次）`/result` 端点来获取最终的识别结果。
+
+#### **1. 提交识别任务 (`/submit`)**
 
   * **Endpoint**: `/submit`
   * **Method**: `POST`
@@ -92,42 +96,47 @@
     }
     ```
   * **成功响应** (HTTP 200):
+    服务会返回一个包含任务ID的JSON对象。
     ```json
     {
       "taskId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     }
     ```
 
-#### **2. 查询识别结果**
+#### **2. 查询识别结果 (`/result`)**
 
   * **Endpoint**: `/result`
   * **Method**: `GET`
-  * **URL**: `https://<你的Worker地址>/result?taskId=<任务ID>&apiKey=<你的API_KEY>`
+  * **URL**: `https://<你的Worker地址>/result?taskId=<从上一步获取的任务ID>&apiKey=<你的API_KEY>`
   * **成功响应** (HTTP 200):
-      * 当任务完成时:
+      * **当任务完成时**:
         ```json
         {
           "status": "completed",
           "solution": "识别出的结果"
         }
         ```
-      * 当任务仍在处理中:
+      * **当任务仍在处理中**:
         ```json
         {
           "status": "pending"
         }
         ```
-      * 当任务发生错误时:
+      * **当任务发生错误时**:
         ```json
         {
           "status": "error",
           "message": "具体的错误信息"
         }
         ```
+  * **失败响应** (HTTP 404):
+    如果任务ID不存在或已过期，将返回 `Task not found or expired`。
 
-#### **调用示例 (Python)**
+-----
 
-这是一个完整的 Python 示例，演示了如何上传图片、提交任务并轮询结果。
+### **调用示例 (Python)**
+
+这是一个完整的 Python 脚本，演示了如何上传图片、提交任务并轮询结果。
 
 ```python
 import requests
@@ -136,10 +145,14 @@ import time
 import mimetypes
 
 # --- 配置 ---
-WORKER_URL = "https://your-worker-name.your-subdomain.workers.dev" # 替换成你的 Worker 地址
-AUTH_TOKEN = "your_auth_token"  # 替换成你的 AUTH_TOKEN
-API_KEY = "your_api_key"        # 替换成你的 API_KEY
-IMAGE_PATH = "path/to/your/captcha.png" # 替换成你的验证码图片路径
+# 替换成你的 Worker 地址
+WORKER_URL = "https://your-worker-name.your-subdomain.workers.dev" 
+# 替换成你在 Cloudflare 中设置的 AUTH_TOKEN
+AUTH_TOKEN = "your_auth_token"  
+# 替换成你在 Cloudflare 中设置的 API_KEY
+API_KEY = "your_api_key"        
+# 替换成你的本地验证码图片路径
+IMAGE_PATH = "path/to/your/captcha.png" 
 
 def solve_captcha(image_path):
     """
@@ -149,11 +162,15 @@ def solve_captcha(image_path):
     try:
         with open(image_path, "rb") as image_file:
             image_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+        # 自动猜测文件的MIME类型
         mime_type = mimetypes.guess_type(image_path)[0]
         if not mime_type:
             raise ValueError("无法确定图片的MIME类型")
     except FileNotFoundError:
         print(f"错误: 文件未找到 at {image_path}")
+        return None
+    except Exception as e:
+        print(f"读取文件时出错: {e}")
         return None
 
     # 2. 提交任务
@@ -169,27 +186,30 @@ def solve_captcha(image_path):
 
     try:
         print("正在提交任务...")
-        submit_res = requests.post(submit_url, headers=submit_headers, json=submit_payload, timeout=10)
+        submit_res = requests.post(submit_url, headers=submit_headers, json=submit_payload, timeout=15)
         submit_res.raise_for_status() # 如果请求失败 (非2xx状态码), 抛出异常
+        
         task_id = submit_res.json().get("taskId")
         if not task_id:
             print("错误: 未能从响应中获取 taskId")
             print("响应内容:", submit_res.text)
             return None
         print(f"任务提交成功, Task ID: {task_id}")
+        
     except requests.exceptions.RequestException as e:
         print(f"提交任务时出错: {e}")
         return None
 
     # 3. 轮询结果
     result_url = f"{WORKER_URL}/result?taskId={task_id}&apiKey={API_KEY}"
-    max_polls = 30  # 最多轮询30次
+    max_polls = 30  # 最多轮询30次 (30 * 2秒 = 60秒超时)
     poll_interval = 2 # 每次轮询间隔2秒
 
+    print("开始轮询结果...")
     for i in range(max_polls):
-        print(f"正在查询结果 (第 {i+1} 次)...")
         try:
             result_res = requests.get(result_url, timeout=10)
+            
             if result_res.status_code == 404:
                 print("错误: 任务未找到或已过期。")
                 return None
@@ -207,6 +227,7 @@ def solve_captcha(image_path):
                 print(f"识别失败: {message}")
                 return None
             elif status == "pending":
+                print(f"任务仍在处理中... ({i+1}/{max_polls})")
                 time.sleep(poll_interval) # 等待后继续轮询
             else:
                 print(f"收到未知的状态: {status}")
@@ -222,6 +243,6 @@ def solve_captcha(image_path):
 if __name__ == "__main__":
     captcha_solution = solve_captcha(IMAGE_PATH)
     if captcha_solution:
-        print(f"\n最终识别结果是: {captcha_solution}")
+        print(f"\n[+] 最终识别结果是: {captcha_solution}")
 
 ```
