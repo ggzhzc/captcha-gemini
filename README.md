@@ -60,7 +60,7 @@
 | 变量名称 (Variable Name) | 值 (Value) | 类型 | 说明 (Description) |
 | :--- | :--- | :--- | :--- |
 | **`GEMINI_API_KEY`** | 从 Google AI Studio 获取的 API 密钥。 | 文本 | 用于访问 Google Gemini Pro Vision API 的核心凭证。 |
-| **`GEMINI_MODEL`** | `gemini-pro-vision` | 文本 | 指定要使用的 Gemini AI 模型名称。 |
+| **`GEMINI_MODEL`** | `例如：gemini-1.5-flash` | 文本 | 指定要使用的 Gemini AI 模型名称。 |
 | **`AUTH_TOKEN`** | *自行创建的一个强密码/随机字符串。* | 文本 | 用于保护 `/submit` 接口，只有提供此令牌才能提交识别任务。 |
 | **`API_KEY`** | *自行创建的另一个强密码/随机字符串。* | 文本 | 用于保护 `/result` 接口，只有提供此密钥才能查询任务结果。 |
 
