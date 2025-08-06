@@ -51,7 +51,7 @@
 
 | 绑定类型 (Binding Type) | 变量名称 (Variable Name) | KV 命名空间 (KV Namespace) | 说明 (Description) |
 | :--- | :--- | :--- | :--- |
-| KV Namespace Binding | `RESULTS_KV` | *由你创建，例如 `CAPTCHA_RESULTS`* | 用于存储异步任务的状态和最终识别结果。**变量名必须为 `RESULTS_KV`**，以匹配代码逻辑。 |
+| KV 命名空间 | `RESULTS_KV` | *由你创建，例如 `CAPTCHA_RESULTS`* | 用于存储异步任务的状态和最终识别结果。**变量名必须为 `RESULTS_KV`**，以匹配代码逻辑。 |
 
 ##### **环境变量 (Environment Variables)**
 
